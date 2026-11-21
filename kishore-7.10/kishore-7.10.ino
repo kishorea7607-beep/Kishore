@@ -1,0 +1,96 @@
+#define F_CPU 8000000UL
+#include <avr/io.h>
+#include <util/delay.h>
+
+#define RS PB0
+#define EN PB1
+void lcd_enable(void)
+{
+    PORTB |= (1 << EN);
+    _delay_ms(1);
+    PORTB &= ~(1 << EN);
+    _delay_ms(1);
+}
+void lcd_nibble(unsigned char data)
+{
+    PORTB = (PORTB & 0x0F) | (data & 0xF0);
+    lcd_enable();
+}
+void lcd_command(unsigned char cmd)
+{
+    PORTB &= ~(1 << RS);
+    lcd_nibble(cmd & 0xF0);
+    lcd_nibble(cmd << 4);
+    _delay_ms(2);
+}
+void lcd_data(unsigned char data)
+{
+    PORTB |= (1 << RS);
+    lcd_nibble(data & 0xF0);
+    lcd_nibble(data << 4);
+    _delay_ms(2);
+}
+void lcd_string(char *str)
+{
+    while(*str)
+    {
+        lcd_data(*str++);
+    }
+}
+void lcd_init(void)
+{
+    DDRB |= 0xF3;
+    _delay_ms(20);
+
+    PORTB &= ~(1 << RS);
+
+    lcd_nibble(0x30);
+    _delay_ms(5);
+    lcd_nibble(0x30);
+    _delay_ms(1);
+    lcd_nibble(0x30);
+    _delay_ms(1);
+    lcd_nibble(0x20);
+
+    lcd_command(0x28);
+    lcd_command(0x0C);
+    lcd_command(0x06);
+    lcd_command(0x01);
+}
+
+// Main function
+int main(void)
+{
+    DDRB |= (1 << PB2);      
+    DDRD &= ~(1 << PD0);      
+
+    PORTD |= (1 << PD0);      
+
+    lcd_init();
+
+    while(1)
+    {
+        lcd_command(0x80);
+
+        if(!(PIND & (1 << PD0)))
+        {
+            PORTB |= (1 << PB2);  
+
+            lcd_command(0x01);
+            lcd_command(0x80);
+            lcd_string("LED ON");
+        }
+        else
+        {
+            PORTB &= ~(1 << PB2); 
+
+            lcd_command(0x01);
+            lcd_command(0x80);
+            lcd_string("LED OFF");
+        }
+
+        _delay_ms(100);
+    }
+
+    return 0;
+}
